@@ -1,4 +1,4 @@
-# keta
+# Keta
 
 A lightweight, zero-dependency Rust crate for digit operations, designed for competitive programming (AtCoder, etc.).
 
