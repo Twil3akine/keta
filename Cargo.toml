@@ -1,6 +1,8 @@
 [package]
 name = "keta"
 version = "0.1.0"
-edition = "2024"
-
-[dependencies]
+edition = "2021"
+description = "A utility crate for digit operations (digits, radix support, palindrome, etc.) optimized for competitive programming."
+license = "MIT"
+repository = "https://github.com/twil3akine/keta"
+readme = "README.md"
