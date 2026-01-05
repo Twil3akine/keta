@@ -20,7 +20,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-keta = "0.3.0"
+keta = "0.3.1"
 ```
 
 ## Usage
@@ -51,4 +51,4 @@ fn main() {
 
 ## License
 
-This project is licensed under the [MIT LICENSE](https://www.google.com/search?q=LICENSE).
+This project is licensed under the [MIT LICENSE](LICENSE).
