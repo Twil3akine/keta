@@ -1,6 +1,6 @@
 [package]
 name = "keta"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 description = "A utility crate for digit operations (digits, radix support, palindrome, etc.) optimized for competitive programming."
 license = "MIT"
