@@ -1,4 +1,5 @@
 #![doc = include_str!("../README.md")]
+#![allow(clippy::needless_doctest_main)]
 pub trait Keta: Copy {
     // ============================================================
     // 10進数ショートカット (よく使うので短い名前)
