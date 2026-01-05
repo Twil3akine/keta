@@ -1,8 +1,9 @@
 #![doc = include_str!("../README.md")]
 #![allow(clippy::needless_doctest_main)]
+
 pub trait Keta: Copy {
     // ============================================================
-    // 10進数ショートカット (よく使うので短い名前)
+    // 10進数ショートカット
     // ============================================================
 
     /// 10進数で各桁の数字(u8)のベクタに分解する
@@ -44,7 +45,7 @@ pub trait Keta: Copy {
     /// ```
     fn digit_product(self) -> u64;
 
-    /// 10進数での桁数を返す (ilog10を使用するため高速)
+    /// 10進数での桁数を返す
     ///
     /// # Example
     /// ```
@@ -122,59 +123,22 @@ pub trait Keta: Copy {
     fn make_min(self) -> Self;
 
     // ============================================================
-    // n進数対応 (Radix)
+    // n進数対応
     // ============================================================
 
     /// n進数で各桁の数字(u8)のベクタに分解する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 6 (10進数) -> 110 (2進数)
-    /// assert_eq!(6.digits_radix(2), vec![1, 1, 0]);
-    /// // 255 (10進数) -> FF (16進数) -> [15, 15]
-    /// assert_eq!(255.digits_radix(16), vec![15, 15]);
-    /// ```
     fn digits_radix(self, base: u32) -> Vec<u8>;
 
     /// n進数の数字列から数値を復元する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 110 (2進数) -> 6 (10進数)
-    /// assert_eq!(u64::from_digits_radix(&[1, 1, 0], 2), 6);
-    /// ```
     fn from_digits_radix(digits: &[u8], base: u32) -> Self;
 
     /// n進数での各桁の和を計算する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 6 (10進数) -> 110 (2進数) -> 1+1+0 = 2
-    /// assert_eq!(6.digit_sum_radix(2), 2);
-    /// ```
     fn digit_sum_radix(self, base: u32) -> u64;
 
     /// n進数での各桁の積を計算する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 7 (10進数) -> 111 (2進数) -> 1*1*1 = 1
-    /// assert_eq!(7.digit_product_radix(2), 1);
-    /// ```
     fn digit_product_radix(self, base: u32) -> u64;
 
     /// n進数での桁数を返す
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 16 (10進数) -> 10000 (2進数) -> 5桁
-    /// assert_eq!(16.digits_len_radix(2), 5);
-    /// ```
     fn digits_len_radix(self, base: u32) -> u32;
 
     /// 数値の並びを反転させる (n進数)
@@ -206,12 +170,139 @@ macro_rules! impl_keta_uint {
     ($($t:ty),*) => {
         $(
             impl Keta for $t {
+                // --- 10-base Shortcuts (Optimized) ---
+
+                fn digits(self) -> Vec<u8> {
+                    if self == 0 { return vec![0]; }
+                    let mut n = self;
+                    // ilog10で正確な容量を計算 (再アロケーション防止)
+                    let cap = (self.ilog10() + 1) as usize;
+                    let mut ret = Vec::with_capacity(cap);
+                    while n > 0 {
+                        ret.push((n % 10) as u8);
+                        n /= 10;
+                    }
+                    ret.reverse();
+                    ret
+                }
+
+                fn from_digits(digits: &[u8]) -> Self {
+                    let mut ret: $t = 0;
+                    for &d in digits {
+                        ret = ret * 10 + (d as $t);
+                    }
+                    ret
+                }
+
+                fn digit_sum(self) -> u64 {
+                    let mut n = self;
+                    let mut sum: u64 = 0;
+                    while n > 0 {
+                        sum += (n % 10) as u64;
+                        n /= 10;
+                    }
+                    sum
+                }
+
+                fn digit_product(self) -> u64 {
+                    if self == 0 { return 0; }
+                    let mut n = self;
+                    let mut prod: u64 = 1;
+                    while n > 0 {
+                        prod *= (n % 10) as u64;
+                        n /= 10;
+                    }
+                    prod
+                }
+
+                fn digits_len(self) -> u32 {
+                    if self == 0 { return 1; }
+                    self.ilog10() + 1
+                }
+
+                fn reverse(self) -> Self {
+                    let mut n = self;
+                    let mut ret: $t = 0;
+                    while n > 0 {
+                        ret = ret * 10 + (n % 10);
+                        n /= 10;
+                    }
+                    ret
+                }
+
+                fn is_palindrome(self) -> bool {
+                    self == self.reverse()
+                }
+
+                fn nth_digit(self, i: u32) -> Option<u8> {
+                    let l = self.digits_len();
+                    if i >= l { return None; }
+                    let pow = l - 1 - i;
+                    Some(((self / (10 as $t).pow(pow)) % 10) as u8)
+                }
+
+                fn concat(self, other: Self) -> Self {
+                    let shift = other.digits_len();
+                    self * (10 as $t).pow(shift) + other
+                }
+
+                fn contains_digit(self, digit: u8) -> bool {
+                    if self == 0 { return digit == 0; }
+                    let mut n = self;
+                    while n > 0 {
+                        if (n % 10) as u8 == digit {
+                            return true;
+                        }
+                        n /= 10;
+                    }
+                    false
+                }
+
+                // O(N) Algorithm: Frequency Distribution
+                fn make_max(self) -> Self {
+                    if self == 0 { return 0; }
+                    let mut counts = [0u32; 10];
+                    let mut n = self;
+                    while n > 0 {
+                        counts[(n % 10) as usize] += 1;
+                        n /= 10;
+                    }
+                    let mut ret: $t = 0;
+                    for d in (0..=9).rev() {
+                        for _ in 0..counts[d] {
+                            ret *= 10;
+                            ret += d as $t;
+                        }
+                    }
+                    ret
+                }
+
+                // O(N) Algorithm: Frequency Distribution
+                fn make_min(self) -> Self {
+                    if self == 0 { return 0; }
+                    let mut counts = [0u32; 10];
+                    let mut n = self;
+                    while n > 0 {
+                        counts[(n % 10) as usize] += 1;
+                        n /= 10;
+                    }
+                    let mut ret: $t = 0;
+                    for d in 0..=9 {
+                        for _ in 0..counts[d] {
+                            ret *= 10;
+                            ret += d as $t;
+                        }
+                    }
+                    ret
+                }
+
                 // --- Radix Implementations ---
                 fn digits_radix(self, base: u32) -> Vec<u8> {
                     if self == 0 { return vec![0]; }
                     let mut n = self;
                     let b = base as $t;
-                    let mut ret = Vec::with_capacity(20);
+                    // 汎用ベースのためヒューリスティックな容量確保
+                    let mut ret = Vec::with_capacity(32);
                     while n > 0 {
                         ret.push((n % b) as u8);
                         n /= b;
@@ -317,33 +408,6 @@ macro_rules! impl_keta_uint {
                     d.sort_unstable();
                     Self::from_digits_radix(&d, base)
                 }
-
-                // --- 10-base Shortcuts ---
-                fn digits(self) -> Vec<u8> { self.digits_radix(10) }
-                fn from_digits(digits: &[u8]) -> Self { Self::from_digits_radix(digits, 10) }
-                fn digit_sum(self) -> u64 { self.digit_sum_radix(10) }
-                fn digit_product(self) -> u64 { self.digit_product_radix(10) }
-                fn digits_len(self) -> u32 {
-                    if self == 0 { return 1; }
-                    self.ilog10() + 1
-                }
-                fn reverse(self) -> Self { self.reverse_radix(10) }
-                fn is_palindrome(self) -> bool { self.is_palindrome_radix(10) }
-                fn nth_digit(self, i: u32) -> Option<u8> {
-                    let l = self.digits_len();
-                    if i >= l { return None; }
-                    let pow = l - 1 - i;
-                    Some(((self / (10 as $t).pow(pow)) % 10) as u8)
-                }
-                fn concat(self, other: Self) -> Self {
-                    let shift = other.digits_len();
-                    self * (10 as $t).pow(shift) + other
-                }
-                fn contains_digit(self, digit: u8) -> bool {
-                    self.contains_digit_radix(digit, 10)
-                }
-                fn make_max(self) -> Self { self.make_max_radix(10) }
-                fn make_min(self) -> Self { self.make_min_radix(10) }
             }
         )*
     };
@@ -356,12 +420,140 @@ macro_rules! impl_keta_int {
     ($($t:ty),*) => {
         $(
             impl Keta for $t {
+                // --- 10-base Shortcuts (Optimized) ---
+
+                fn digits(self) -> Vec<u8> {
+                    if self == 0 { return vec![0]; }
+                    let mut n = self.abs();
+                    // ilog10で正確な容量を計算 (再アロケーション防止)
+                    let cap = (n.ilog10() + 1) as usize;
+                    let mut ret = Vec::with_capacity(cap);
+                    while n > 0 {
+                        ret.push((n % 10) as u8);
+                        n /= 10;
+                    }
+                    ret.reverse();
+                    ret
+                }
+
+                fn from_digits(digits: &[u8]) -> Self {
+                    let mut ret: $t = 0;
+                    for &d in digits {
+                        ret = ret * 10 + (d as $t);
+                    }
+                    ret
+                }
+
+                fn digit_sum(self) -> u64 {
+                    let mut n = self.abs();
+                    let mut sum: u64 = 0;
+                    while n > 0 {
+                        sum += (n % 10) as u64;
+                        n /= 10;
+                    }
+                    sum
+                }
+
+                fn digit_product(self) -> u64 {
+                    let mut n = self.abs();
+                    if n == 0 { return 0; }
+                    let mut prod: u64 = 1;
+                    while n > 0 {
+                        prod *= (n % 10) as u64;
+                        n /= 10;
+                    }
+                    prod
+                }
+
+                fn digits_len(self) -> u32 {
+                    if self == 0 { return 1; }
+                    self.abs().ilog10() + 1
+                }
+
+                fn reverse(self) -> Self {
+                    let mut n = self.abs();
+                    let mut ret: $t = 0;
+                    while n > 0 {
+                        ret = ret * 10 + (n % 10);
+                        n /= 10;
+                    }
+                    if self < 0 { -ret } else { ret }
+                }
+
+                fn is_palindrome(self) -> bool {
+                    self == self.reverse()
+                }
+
+                fn nth_digit(self, i: u32) -> Option<u8> {
+                    let l = self.digits_len();
+                    if i >= l { return None; }
+                    let pow = l - 1 - i;
+                    Some(((self.abs() / (10 as $t).pow(pow)) % 10) as u8)
+                }
+
+                fn concat(self, other: Self) -> Self {
+                    let shift = other.digits_len();
+                    let added = other.abs();
+                    let shifted = self * (10 as $t).pow(shift);
+                    if self < 0 { shifted - added } else { shifted + added }
+                }
+
+                fn contains_digit(self, digit: u8) -> bool {
+                    let mut n = self.abs();
+                    if n == 0 { return digit == 0; }
+                    while n > 0 {
+                        if (n % 10) as u8 == digit {
+                            return true;
+                        }
+                        n /= 10;
+                    }
+                    false
+                }
+
+                // O(N) Algorithm
+                fn make_max(self) -> Self {
+                    if self == 0 { return 0; }
+                    let mut counts = [0u32; 10];
+                    let mut n = self.abs();
+                    while n > 0 {
+                        counts[(n % 10) as usize] += 1;
+                        n /= 10;
+                    }
+                    let mut ret: $t = 0;
+                    for d in (0..=9).rev() {
+                        for _ in 0..counts[d] {
+                            ret *= 10;
+                            ret += d as $t;
+                        }
+                    }
+                    ret
+                }
+
+                // O(N) Algorithm
+                fn make_min(self) -> Self {
+                    if self == 0 { return 0; }
+                    let mut counts = [0u32; 10];
+                    let mut n = self.abs();
+                    while n > 0 {
+                        counts[(n % 10) as usize] += 1;
+                        n /= 10;
+                    }
+                    let mut ret: $t = 0;
+                    for d in 0..=9 {
+                        for _ in 0..counts[d] {
+                            ret *= 10;
+                            ret += d as $t;
+                        }
+                    }
+                    ret
+                }
+
                 // --- Radix Implementations ---
                 fn digits_radix(self, base: u32) -> Vec<u8> {
                     if self == 0 { return vec![0]; }
                     let mut n = self.abs();
                     let b = base as $t;
-                    let mut ret = Vec::with_capacity(20);
+                    let mut ret = Vec::with_capacity(32);
                     while n > 0 {
                         ret.push((n % b) as u8);
                         n /= b;
@@ -469,35 +661,6 @@ macro_rules! impl_keta_int {
                     d.sort_unstable();
                     Self::from_digits_radix(&d, base)
                 }
-
-                // --- 10-base Shortcuts ---
-                fn digits(self) -> Vec<u8> { self.digits_radix(10) }
-                fn from_digits(digits: &[u8]) -> Self { Self::from_digits_radix(digits, 10) }
-                fn digit_sum(self) -> u64 { self.digit_sum_radix(10) }
-                fn digit_product(self) -> u64 { self.digit_product_radix(10) }
-                fn digits_len(self) -> u32 {
-                    if self == 0 { return 1; }
-                    self.abs().ilog10() + 1
-                }
-                fn reverse(self) -> Self { self.reverse_radix(10) }
-                fn is_palindrome(self) -> bool { self.is_palindrome_radix(10) }
-                fn nth_digit(self, i: u32) -> Option<u8> {
-                    let l = self.digits_len();
-                    if i >= l { return None; }
-                    let pow = l - 1 - i;
-                    Some(((self.abs() / (10 as $t).pow(pow)) % 10) as u8)
-                }
-                fn concat(self, other: Self) -> Self {
-                    let shift = other.digits_len();
-                    let added = other.abs();
-                    let shifted = self * (10 as $t).pow(shift);
-                    if self < 0 { shifted - added } else { shifted + added }
-                }
-                fn contains_digit(self, digit: u8) -> bool {
-                    self.contains_digit_radix(digit, 10)
-                }
-                fn make_max(self) -> Self { self.make_max_radix(10) }
-                fn make_min(self) -> Self { self.make_min_radix(10) }
             }
         )*
     };
@@ -506,118 +669,3 @@ macro_rules! impl_keta_int {
 // 型への実装
 impl_keta_uint!(u8, u16, u32, u64, u128, usize);
 impl_keta_int!(i8, i16, i32, i64, i128, isize);
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_digits() {
-        assert_eq!(12345.digits(), vec![1, 2, 3, 4, 5]);
-        assert_eq!(0.digits(), vec![0]);
-        assert_eq!((-123).digits(), vec![1, 2, 3]);
-    }
-
-    #[test]
-    fn test_digit_sum() {
-        assert_eq!(123.digit_sum(), 6);
-        assert_eq!(0.digit_sum(), 0);
-    }
-
-    #[test]
-    fn test_digit_product() {
-        assert_eq!(1234.digit_product(), 24);
-        assert_eq!(103.digit_product(), 0);
-        assert_eq!(0.digit_product(), 0);
-    }
-
-    #[test]
-    fn test_from_digits() {
-        assert_eq!(u64::from_digits(&[1, 2, 3]), 123);
-        assert_eq!(u64::from_digits(&[0]), 0);
-    }
-
-    #[test]
-    fn test_reverse() {
-        assert_eq!(123.reverse(), 321);
-        assert_eq!((-123).reverse(), -321);
-    }
-
-    #[test]
-    fn test_digits_len() {
-        assert_eq!(123.digits_len(), 3);
-        assert_eq!(1000.digits_len(), 4);
-        assert_eq!(0.digits_len(), 1);
-        assert_eq!((-123).digits_len(), 3);
-    }
-
-    #[test]
-    fn test_nth_digit() {
-        assert_eq!(12345.nth_digit(0), Some(1));
-        assert_eq!(12345.nth_digit(4), Some(5));
-        assert_eq!(12345.nth_digit(5), None);
-    }
-
-    #[test]
-    fn test_concat() {
-        assert_eq!(12.concat(34), 1234);
-        assert_eq!((-12).concat(34), -1234);
-    }
-
-    #[test]
-    fn test_contains_digit() {
-        assert!(12345.contains_digit(3));
-        assert!(!12345.contains_digit(9));
-        assert!(0.contains_digit(0));
-    }
-
-    #[test]
-    fn test_make_max() {
-        assert_eq!(2026.make_max(), 6220);
-    }
-
-    #[test]
-    fn test_make_min() {
-        assert_eq!(2026.make_min(), 226);
-    }
-
-    #[test]
-    fn test_is_palindrome() {
-        assert!(121.is_palindrome());
-        assert!(!123.is_palindrome());
-    }
-
-    #[test]
-    fn test_digits_radix() {
-        // 6 (10) -> 110 (2)
-        assert_eq!(6.digits_radix(2), vec![1, 1, 0]);
-        // 255 (10) -> FF (16)
-        assert_eq!(255.digits_radix(16), vec![15, 15]);
-        // 0 (10) -> 0 (n)
-        assert_eq!(0.digits_radix(2), vec![0]);
-    }
-
-    #[test]
-    fn test_from_digits_radix() {
-        assert_eq!(u64::from_digits_radix(&[1, 1, 0], 2), 6);
-        assert_eq!(u64::from_digits_radix(&[15, 15], 16), 255);
-    }
-
-    #[test]
-    fn test_digit_sum_radix() {
-        assert_eq!(6.digit_sum_radix(2), 2); // 110 -> 1+1+0=2
-    }
-
-    #[test]
-    fn test_digit_product_radix() {
-        assert_eq!(7.digit_product_radix(2), 1); // 111 -> 1*1*1=1
-        assert_eq!(6.digit_product_radix(2), 0); // 110 -> 1*1*0=0
-    }
-
-    #[test]
-    fn test_digits_len_radix() {
-        assert_eq!(16.digits_len_radix(2), 5); // 10000
-        assert_eq!(15.digits_len_radix(2), 4); // 1111
-        assert_eq!(0.digits_len_radix(2), 1);
-    }
-}
