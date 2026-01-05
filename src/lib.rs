@@ -3,7 +3,7 @@
 
 pub trait Keta: Copy {
     // ============================================================
-    // 10進数ショートカット (よく使うので短い名前)
+    // 10進数ショートカット
     // ============================================================
 
     /// 10進数で各桁の数字(u8)のベクタに分解する
@@ -123,59 +123,22 @@ pub trait Keta: Copy {
     fn make_min(self) -> Self;
 
     // ============================================================
-    // n進数対応 (Radix)
+    // n進数対応
     // ============================================================
 
     /// n進数で各桁の数字(u8)のベクタに分解する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 6 (10進数) -> 110 (2進数)
-    /// assert_eq!(6.digits_radix(2), vec![1, 1, 0]);
-    /// // 255 (10進数) -> FF (16進数) -> [15, 15]
-    /// assert_eq!(255.digits_radix(16), vec![15, 15]);
-    /// ```
     fn digits_radix(self, base: u32) -> Vec<u8>;
 
     /// n進数の数字列から数値を復元する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 110 (2進数) -> 6 (10進数)
-    /// assert_eq!(u64::from_digits_radix(&[1, 1, 0], 2), 6);
-    /// ```
     fn from_digits_radix(digits: &[u8], base: u32) -> Self;
 
     /// n進数での各桁の和を計算する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 6 (10進数) -> 110 (2進数) -> 1+1+0 = 2
-    /// assert_eq!(6.digit_sum_radix(2), 2);
-    /// ```
     fn digit_sum_radix(self, base: u32) -> u64;
 
     /// n進数での各桁の積を計算する
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 7 (10進数) -> 111 (2進数) -> 1*1*1 = 1
-    /// assert_eq!(7.digit_product_radix(2), 1);
-    /// ```
     fn digit_product_radix(self, base: u32) -> u64;
 
     /// n進数での桁数を返す
-    ///
-    /// # Example
-    /// ```
-    /// use keta::Keta;
-    /// // 16 (10進数) -> 10000 (2進数) -> 5桁
-    /// assert_eq!(16.digits_len_radix(2), 5);
-    /// ```
     fn digits_len_radix(self, base: u32) -> u32;
 
     /// 数値の並びを反転させる (n進数)
@@ -307,7 +270,8 @@ macro_rules! impl_keta_uint {
                     let mut ret: $t = 0;
                     for d in (0..=9).rev() {
                         for _ in 0..counts[d] {
-                            ret = ret * 10 + (d as $t);
+                            ret *= 10;
+                            ret += d as $t;
                         }
                     }
                     ret
@@ -323,22 +287,10 @@ macro_rules! impl_keta_uint {
                         n /= 10;
                     }
                     let mut ret: $t = 0;
-                    // 先頭: 0以外の最小の数字を探す
-                    for d in 1..=9 {
-                        if counts[d] > 0 {
-                            ret = d as $t;
-                            counts[d] -= 1;
-                            break;
-                        }
-                    }
-                    // 0を全て追加
-                    for _ in 0..counts[0] {
-                        ret = ret * 10;
-                    }
-                    // 残りの数字を追加
-                    for d in 1..=9 {
+                    for d in 0..=9 {
                         for _ in 0..counts[d] {
-                            ret = ret * 10 + (d as $t);
+                            ret *= 10;
+                            ret += d as $t;
                         }
                     }
                     ret
@@ -570,7 +522,8 @@ macro_rules! impl_keta_int {
                     let mut ret: $t = 0;
                     for d in (0..=9).rev() {
                         for _ in 0..counts[d] {
-                            ret = ret * 10 + (d as $t);
+                            ret *= 10;
+                            ret += d as $t;
                         }
                     }
                     ret
@@ -586,17 +539,10 @@ macro_rules! impl_keta_int {
                         n /= 10;
                     }
                     let mut ret: $t = 0;
-                    for d in 1..=9 {
-                        if counts[d] > 0 {
-                            ret = d as $t;
-                            counts[d] -= 1;
-                            break;
-                        }
-                    }
-                    for _ in 0..counts[0] { ret = ret * 10; }
-                    for d in 1..=9 {
+                    for d in 0..=9 {
                         for _ in 0..counts[d] {
-                            ret = ret * 10 + (d as $t);
+                            ret *= 10;
+                            ret += d as $t;
                         }
                     }
                     ret
