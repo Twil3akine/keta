@@ -20,7 +20,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-keta = "0.3.1"
+keta = "0.3.2"
 ```
 
 ## Usage
